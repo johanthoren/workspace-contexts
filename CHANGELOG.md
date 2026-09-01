@@ -11,8 +11,8 @@ First public release.
 
 ### Fixed
 
-- On a gap workspace the bar and Super+N stay on the last bank you used, not
-  the first bank.
+- On a gap workspace the bar and Super+1 through Super+9 stay on the last bank
+  you used, not the first bank.
 - Clicking a bank name on the bar restores that bank's last slot, matching
   Super+Ctrl+Left and Super+Ctrl+Right.
 - Invalid `contexts.json` keeps the last good dump, written to

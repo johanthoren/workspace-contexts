@@ -431,7 +431,8 @@ function M.setup(dependencies)
   for slot = 1, slots do
     local key = "code:" .. tostring(slot + 9)
 
-    -- Stock Super+N focuses global workspace N. Keep Super+10 if slots is 9.
+    -- Stock Super+1 through Super+0 focus global workspaces 1 through 10.
+    -- Keep Super+0 if slots is 9.
     api.unbind("SUPER + " .. key)
     api.unbind("SUPER + SHIFT + " .. key)
     api.unbind("SUPER + SHIFT + ALT + " .. key)

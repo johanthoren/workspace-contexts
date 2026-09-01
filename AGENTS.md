@@ -76,9 +76,9 @@ dropped when its name is empty or duplicated, its `base` is negative, its last
 workspace id is greater than 99, or its range overlaps an already-accepted bank.
 Default cap is 10 rows (`maxContexts`).
 
-`slots` is capped at 10. Slots become Super+N binds across the number row, and a
-higher value would reach past it into Super+BackSpace, Super+Tab, and the letters,
-silently taking over stock Omarchy shortcuts.
+`slots` is capped at 10. Slots become Super+1 through Super+0 on the number row,
+and a higher value would reach past it into Super+BackSpace, Super+Tab, and the
+letters, silently taking over stock Omarchy shortcuts.
 
 Edits apply on the next keypress. Only a `slots` change needs `hyprctl reload`,
 because `slots` decides which keys get bound.

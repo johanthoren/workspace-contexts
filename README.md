@@ -89,7 +89,7 @@ the next keypress. Reload Hyprland after you change `slots`.
 | Key | Meaning |
 | --- | --- |
 | `stride` | Spacing between banks that omit `base`. Default 10. |
-| `slots` | Workspaces per bank, and how many Super+N keys get bound. Default 9, capped at 10. |
+| `slots` | Workspaces per bank, and how many Super+1 through Super+0 keys get bound. Default 9, capped at 10. |
 | `maxContexts` | How many rows to read before stopping. Default 10. |
 | `fallback` | Hex colors used when the theme does not define an accent. |
 | `contexts[].name` | The bar label. Must be unique. |
@@ -133,8 +133,8 @@ omarchy plugin update io.github.johanthoren.workspace-contexts
 hyprctl reload
 ```
 
-`hyprctl reload` rebinds Super+1 through Super+9 from the new module. The bar
-widget reloads from the plugin files on its own.
+`hyprctl reload` rebinds Super+1 through Super+9 (and Super+0 if `slots` is 10)
+from the new module. The bar widget reloads from the plugin files on its own.
 
 ## Disable
 

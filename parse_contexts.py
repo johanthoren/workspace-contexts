@@ -19,9 +19,9 @@ TOKYO_NIGHT = {
 DEFAULT_STRIDE = 10
 DEFAULT_SLOTS = 9
 DEFAULT_MAX_CONTEXTS = 10
-# Slots become Super+N binds over the number row, which runs out after ten
-# keys. A larger value would bind Super+BackSpace, Super+Tab, Super+Q, and on
-# into the letters, silently taking over stock Omarchy shortcuts.
+# Slots become Super+1 through Super+0 on the number row, which runs out after
+# ten keys. A larger value would bind Super+BackSpace, Super+Tab, Super+Q, and
+# on into the letters, silently taking over stock Omarchy shortcuts.
 MAX_SLOTS = 10
 MAX_WORKSPACE_ID = 99
 HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
