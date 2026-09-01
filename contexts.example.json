@@ -1,0 +1,18 @@
+{
+  "stride": 10,
+  "slots": 9,
+  "maxContexts": 10,
+  "fallback": {
+    "blue": "#7aa2f7",
+    "green": "#9ece6a",
+    "magenta": "#ad8ee6",
+    "yellow": "#e0af68",
+    "cyan": "#449dab",
+    "red": "#f7768e"
+  },
+  "contexts": [
+    { "name": "work", "base": 0, "accent": "blue" },
+    { "name": "personal", "base": 10, "accent": "green" },
+    { "name": "other", "base": 20, "accent": "magenta" }
+  ]
+}
