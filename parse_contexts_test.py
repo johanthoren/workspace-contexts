@@ -106,6 +106,54 @@ def test_cap_at_10():
     assert names(filled) == ["c%d" % i for i in range(10)]
 
 
+def test_slots_capped_at_keyboard_row():
+    filled = parse_contexts.parse_obj({"slots": 50, "contexts": [{"name": "a", "base": 0}]})
+    assert filled["slots"] == parse_contexts.MAX_SLOTS, "slots above the number row clamp to 10"
+
+    filled = parse_contexts.parse_obj({"slots": 4, "contexts": [{"name": "a", "base": 0}]})
+    assert filled["slots"] == 4, "slots inside the number row is kept"
+
+    filled = parse_contexts.parse_obj({"slots": 0, "contexts": [{"name": "a", "base": 0}]})
+    assert filled["slots"] == 9, "a non-positive slots falls back to the default"
+
+
+def test_drop_negative_base():
+    filled = parse_contexts.parse_obj(
+        {
+            "contexts": [
+                {"name": "below", "base": -5},
+                {"name": "zero", "base": 0},
+            ]
+        }
+    )
+    assert names(filled) == ["zero"], "a negative base is dropped"
+
+    only_negative = parse_contexts.parse_obj({"contexts": [{"name": "below", "base": -1}]})
+    assert names(only_negative) == ["work", "personal", "other"], "no usable row falls back"
+
+
+def test_drop_huge_base():
+    filled = parse_contexts.parse_obj(
+        {
+            "contexts": [
+                {"name": "far", "base": 100},
+                {"name": "near", "base": 0},
+            ]
+        }
+    )
+    assert names(filled) == ["near"], "a last slot above 99 is dropped"
+
+    kept = parse_contexts.parse_obj({"slots": 9, "contexts": [{"name": "ok", "base": 20}]})
+    assert names(kept) == ["ok"], "a last slot at 29 is kept"
+    assert bases(kept) == [20]
+
+    omitted = parse_contexts.parse_obj(
+        {"stride": 100, "contexts": [{"name": "a"}, {"name": "b"}]}
+    )
+    assert names(omitted) == ["a"], "an omitted base that overflows is dropped"
+    assert bases(omitted) == [0]
+
+
 def test_drop_overlap():
     filled = parse_contexts.parse_obj(
         {
@@ -185,6 +233,7 @@ def test_lua():
     with tempfile.TemporaryDirectory() as tmp:
         env = os.environ.copy()
         env["HOME"] = tmp
+        env["WORKSPACE_CONTEXTS_TEST"] = "1"
         subprocess.run(
             ["lua5.1", str(lua)],
             check=True,
@@ -199,6 +248,9 @@ def main():
         test_missing_accent_cycle,
         test_missing_base_assignment,
         test_cap_at_10,
+        test_slots_capped_at_keyboard_row,
+        test_drop_negative_base,
+        test_drop_huge_base,
         test_drop_overlap,
         test_drop_hex_as_accent,
         test_unique_names,

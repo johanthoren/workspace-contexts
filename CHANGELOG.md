@@ -1,0 +1,25 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
+this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - 2026-09-01
+
+First public release.
+
+### Added
+
+- Bar widget showing bank-local slot numbers for the active bank, plus a button
+  per bank, colored from the current Omarchy theme.
+- Hyprland module binding Super+1 to Super+9 to slots in the current bank,
+  Super+Shift+1 to Super+Shift+9 and Super+Shift+Alt+1 to Super+Shift+Alt+9 to
+  move a window, and Super+Ctrl+Left and Super+Ctrl+Right to cycle banks.
+- Per-bank slot memory, so returning to a bank returns to the last slot used.
+- `contexts.json` configuration, seeded from `contexts.example.json` on first run
+  and never overwritten afterwards.
+- `parse_contexts.py --dump` as the single source of bank math for both the
+  widget and the Hyprland module.
+
+[1.0.0]: https://github.com/johanthoren/workspace-contexts/releases/tag/1.0.0

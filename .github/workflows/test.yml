@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lua5.1 and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1 jq
+
+      - name: Run tests
+        run: python3 parse_contexts_test.py
+
+      - name: Validate the plugin manifest
+        run: ./.github/validate-manifest.sh .

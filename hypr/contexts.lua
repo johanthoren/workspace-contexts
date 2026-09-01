@@ -6,6 +6,11 @@ if THIS_SOURCE:sub(1, 1) == "@" then
 end
 local THIS_DIR = THIS_SOURCE:match("^(.*)/") or "."
 local PARSE_PY = THIS_DIR .. "/../parse_contexts.py"
+local PLUGIN_ID = "io.github.johanthoren.workspace-contexts"
+local USER_FILE = (os.getenv("HOME") or "")
+  .. "/.config/omarchy/"
+  .. PLUGIN_ID
+  .. "/contexts.json"
 
 -- Used only when python3 --dump fails. The filled table comes from parse_contexts.py.
 local DEFAULT_FILE = {
@@ -19,6 +24,8 @@ local DEFAULT_FILE = {
   },
 }
 
+-- Omarchy exports the same helper as o.shell_quote, but this module is also
+-- loaded standalone by the test, before that global exists.
 local function shell_quote(value)
   return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
@@ -280,8 +287,37 @@ function M.adjacent_context(context_index, direction, count)
   return ((context_index - 1 + direction) % count) + 1
 end
 
+-- Every keybind resolves the current file, and read_dump() forks a Python
+-- interpreter inside the compositor's Lua VM (~40 ms). Reading contexts.json
+-- costs nothing by comparison, so its raw text is the cache key: the dump only
+-- re-runs when the user actually edits the file. A failed dump is not cached,
+-- so the next keypress retries. Absent reads as false, which differs from any
+-- string, so the first read after a seed re-runs once.
+local cached_source = nil
+local cached_file = nil
+
+local function read_user_source()
+  local handle = io.open(USER_FILE, "r")
+  if not handle then
+    return false
+  end
+  local text = handle:read("*a")
+  handle:close()
+  return text or false
+end
+
 function M.load_file()
-  return read_dump() or DEFAULT_FILE
+  local source = read_user_source()
+  if cached_file and source == cached_source then
+    return cached_file
+  end
+  local dumped = read_dump()
+  if not dumped then
+    return DEFAULT_FILE
+  end
+  cached_file = dumped
+  cached_source = source
+  return dumped
 end
 
 function M.setup(dependencies)
@@ -314,6 +350,9 @@ function M.setup(dependencies)
 
   local function focus_workspace(file, context_index, slot)
     local id = M.workspace_id(context_index, slot, file)
+    if not id then
+      return
+    end
     api.dispatch(api.dsp.focus({ workspace = tostring(id) }))
   end
 
@@ -337,7 +376,11 @@ function M.setup(dependencies)
   local function move_window_to_slot(slot, follow)
     local file = current_file()
     local index = resolve_index(file)
-    local spec = { workspace = tostring(M.workspace_id(index, slot, file)) }
+    local id = M.workspace_id(index, slot, file)
+    if not id then
+      return
+    end
+    local spec = { workspace = tostring(id) }
     if follow == false then
       spec.follow = false
     else

@@ -22,6 +22,12 @@ BarWidget {
   })
   property var contextColors: fallbackContextColors
   property string lastThemeText: ""
+  // A dump requested while one is in flight would otherwise be dropped, leaving
+  // the bar on stale contexts after a quick second edit.
+  property bool dumpPending: false
+  // contexts.json did not exist, so the dump seeds it. The FileView has nothing
+  // to watch until that lands.
+  property bool seedPending: false
 
   readonly property string parsePath: {
     var path = Qt.resolvedUrl("./parse_contexts.py").toString()
@@ -31,7 +37,10 @@ BarWidget {
   readonly property string userContextsPath: Quickshell.env("HOME") + "/.config/omarchy/io.github.johanthoren.workspace-contexts/contexts.json"
 
   function requestDump() {
-    if (parser.running) return
+    if (parser.running) {
+      root.dumpPending = true
+      return
+    }
     parser.running = true
   }
 
@@ -55,7 +64,9 @@ BarWidget {
     }
     if (next.length === 0) return
 
-    if (typeof parsed.slots === "number" && parsed.slots >= 1) root.bankSlots = parsed.slots
+    // parse_contexts.py already clamps this; the widget re-checks because it
+    // validates every other field it reads out of the dump.
+    if (typeof parsed.slots === "number" && parsed.slots >= 1) root.bankSlots = Math.min(10, Math.floor(parsed.slots))
     if (parsed.fallback && typeof parsed.fallback === "object") {
       var fallback = {}
       var keys = ["blue", "green", "magenta", "yellow", "cyan", "red"]
@@ -69,6 +80,8 @@ BarWidget {
     root.contexts = next
     if (root.lastThemeText) root.loadContextColors(root.lastThemeText)
     else root.contextColors = root.fallbackContextColors
+
+    if (root.seedPending) contextsFile.reload()
   }
 
   function loadContextColors(raw) {
@@ -157,12 +170,25 @@ BarWidget {
   implicitHeight: content.implicitHeight
 
   FileView {
+    id: contextsFile
     path: root.userContextsPath
     watchChanges: true
     printErrors: false
-    onLoaded: root.requestDump()
+    onLoaded: {
+      root.seedPending = false
+      root.requestDump()
+    }
     onFileChanged: reload()
-    onLoadFailed: root.requestDump()
+    onLoadFailed: {
+      // reload() of a still-missing path emits loadFailed again. Keep the flag
+      // set across the dump so that retry does not start another dump.
+      if (root.seedPending) {
+        root.seedPending = false
+        return
+      }
+      root.seedPending = true
+      root.requestDump()
+    }
   }
 
   FileView {
@@ -183,6 +209,12 @@ BarWidget {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.applyDump(text)
+    }
+    onExited: {
+      if (root.dumpPending) {
+        root.dumpPending = false
+        root.requestDump()
+      }
     }
   }
 

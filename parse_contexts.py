@@ -19,6 +19,11 @@ TOKYO_NIGHT = {
 DEFAULT_STRIDE = 10
 DEFAULT_SLOTS = 9
 DEFAULT_MAX_CONTEXTS = 10
+# Slots become Super+N binds over the number row, which runs out after ten
+# keys. A larger value would bind Super+BackSpace, Super+Tab, Super+Q, and on
+# into the letters, silently taking over stock Omarchy shortcuts.
+MAX_SLOTS = 10
+MAX_WORKSPACE_ID = 99
 HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 SHIPPED_CONTEXTS = (
     {"name": "work", "base": 0, "accent": "blue"},
@@ -57,10 +62,12 @@ def _as_int(value):
     return int(value)
 
 
-def _positive_int(value, default):
+def _positive_int(value, default, maximum=None):
     if _is_int(value):
         number = _as_int(value)
         if number > 0:
+            if maximum is not None and number > maximum:
+                return maximum
             return number
     return default
 
@@ -81,7 +88,7 @@ def parse_obj(data):
         return default_file()
 
     stride = _positive_int(data.get("stride"), DEFAULT_STRIDE)
-    slots = _positive_int(data.get("slots"), DEFAULT_SLOTS)
+    slots = _positive_int(data.get("slots"), DEFAULT_SLOTS, MAX_SLOTS)
     max_contexts = _positive_int(data.get("maxContexts"), DEFAULT_MAX_CONTEXTS)
     fallback = _parse_fallback(data.get("fallback"))
 
@@ -103,6 +110,9 @@ def parse_obj(data):
             base = _as_int(row["base"])
         else:
             base = index * stride
+        # Hyprland rejects id <= 0; drop a bank whose last slot is above MAX_WORKSPACE_ID.
+        if base < 0 or base + slots > MAX_WORKSPACE_ID:
+            continue
         lo = base + 1
         hi = base + slots
         overlap = False
