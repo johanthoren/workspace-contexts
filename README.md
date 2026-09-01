@@ -2,6 +2,8 @@
 
 This plugin splits Hyprland workspaces into named banks. The bar shows slot numbers for the active bank, then a button for each bank name. Colors come from the current Omarchy theme.
 
+Coding agents: read [AGENTS.md](AGENTS.md) before installing or editing.
+
 ## Add the plugin
 
 ```bash
