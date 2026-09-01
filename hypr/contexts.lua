@@ -290,9 +290,11 @@ end
 -- Every keybind resolves the current file, and read_dump() forks a Python
 -- interpreter inside the compositor's Lua VM (~40 ms). Reading contexts.json
 -- costs nothing by comparison, so its raw text is the cache key: the dump only
--- re-runs when the user actually edits the file. A failed dump is not cached,
--- so the next keypress retries. Absent reads as false, which differs from any
--- string, so the first read after a seed re-runs once.
+-- re-runs when the user actually edits the file. A subprocess miss is not
+-- cached, so the next keypress retries. A dump with ok=false keeps the last
+-- good table and pins the cache key so a stable broken file does not re-fork.
+-- Absent reads as false, which differs from any string, so the first read
+-- after a seed re-runs once.
 local cached_source = nil
 local cached_file = nil
 
@@ -313,7 +315,14 @@ function M.load_file()
   end
   local dumped = read_dump()
   if not dumped then
-    return DEFAULT_FILE
+    -- Subprocess miss: keep last good and retry next keypress.
+    return cached_file or DEFAULT_FILE
+  end
+  if dumped.ok == false and cached_file then
+    -- Remember this source so a stable broken file does not re-fork, but
+    -- keep serving the last good table until the file changes again.
+    cached_source = source
+    return cached_file
   end
   cached_file = dumped
   cached_source = source

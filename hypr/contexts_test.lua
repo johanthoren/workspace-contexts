@@ -171,4 +171,78 @@ if os.getenv("WORKSPACE_CONTEXTS_TEST") == "1" then
   if popen_count < 2 then
     error("failed dump was cached; popen called " .. tostring(popen_count) .. " times")
   end
+
+  handle = io.open(user, "w")
+  if not handle then
+    error("could not write custom contexts.json")
+  end
+  handle:write('{"contexts":[{"name":"retry","base":0,"accent":"blue"},{"name":"lab","base":10,"accent":"green"}]}')
+  handle:close()
+  local custom = M.load_file()
+  eq(custom.contexts[1].name, "retry", "custom dump is used")
+  handle = io.open(user, "w")
+  handle:write("{not json")
+  handle:close()
+  local kept = M.load_file()
+  eq(kept.contexts[1].name, "retry", "invalid JSON keeps last good dump")
+  eq(kept, custom, "invalid JSON returns the cached table")
+
+  local ws = { id = 1 }
+  local focused = {}
+  local mem_unbinds = {}
+  local mem_binds = {}
+  local mem_hl = {
+    unbind = function(key)
+      mem_unbinds[#mem_unbinds + 1] = key
+    end,
+    dispatch = function(spec)
+      focused[#focused + 1] = spec and spec.workspace
+    end,
+    get_active_workspace = function()
+      return ws
+    end,
+    dsp = {
+      focus = function(spec)
+        return spec
+      end,
+      window = {
+        move = function(spec)
+          return spec
+        end,
+      },
+    },
+  }
+  local mem_o = {
+    bind = function(key)
+      mem_binds[#mem_binds + 1] = key
+    end,
+  }
+  local orig_load_mem = M.load_file
+  M.load_file = function()
+    return {
+      slots = 9,
+      contexts = {
+        { name = "work", base = 0, accent = "blue" },
+        { name = "personal", base = 10, accent = "green" },
+      },
+    }
+  end
+  local mem = M.setup({ hl = mem_hl, o = mem_o })
+  mem.focus_slot(2)
+  eq(focused[#focused], "2", "work slot 2")
+  ws.id = 2
+  mem.switch_context(1)
+  eq(focused[#focused], "11", "first visit to personal is slot 1")
+  ws.id = 11
+  mem.focus_slot(3)
+  eq(focused[#focused], "13", "personal slot 3")
+  ws.id = 13
+  mem.switch_context(-1)
+  eq(focused[#focused], "2", "return to work restores slot 2")
+  ws.id = 13
+  mem.focus_slot(3)
+  ws.id = 10
+  mem.focus_slot(1)
+  eq(focused[#focused], "11", "gap Super+1 stays on last bank")
+  M.load_file = orig_load_mem
 end

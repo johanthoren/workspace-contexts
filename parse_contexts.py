@@ -40,14 +40,29 @@ def user_file(home):
     return Path(home) / ".config" / "omarchy" / PLUGIN_ID / "contexts.json"
 
 
+def last_good_path(home):
+    return Path(home) / ".local" / "state" / "omarchy" / PLUGIN_ID / "last-good.json"
+
+
 def default_file():
     return {
+        "ok": True,
+        "status": "ok",
+        "errors": [],
         "stride": DEFAULT_STRIDE,
         "slots": DEFAULT_SLOTS,
         "maxContexts": DEFAULT_MAX_CONTEXTS,
         "fallback": dict(TOKYO_NIGHT),
         "contexts": [dict(row) for row in SHIPPED_CONTEXTS],
     }
+
+
+def _failed(errors):
+    filled = default_file()
+    filled["ok"] = False
+    filled["status"] = "error"
+    filled["errors"] = list(errors)
+    return filled
 
 
 def _is_int(value):
@@ -85,7 +100,7 @@ def _parse_fallback(raw):
 
 def parse_obj(data):
     if not isinstance(data, dict) or not isinstance(data.get("contexts"), list):
-        return default_file()
+        return _failed(["contexts.json must be an object with a contexts array"])
 
     stride = _positive_int(data.get("stride"), DEFAULT_STRIDE)
     slots = _positive_int(data.get("slots"), DEFAULT_SLOTS, MAX_SLOTS)
@@ -95,23 +110,35 @@ def parse_obj(data):
     rows = []
     names = set()
     ranges = []
+    errors = []
 
     for index, row in enumerate(data["contexts"]):
         if len(rows) >= max_contexts:
+            errors.append("stopped at maxContexts %d" % max_contexts)
             break
         if not isinstance(row, dict):
+            errors.append("skipped a non-object context row")
             continue
         name = row.get("name")
-        if not isinstance(name, str) or name == "" or name in names:
+        if not isinstance(name, str) or name == "":
+            errors.append("skipped a context with an empty name")
+            continue
+        if name in names:
+            errors.append("dropped %r: duplicate name" % name)
             continue
         if "base" in row:
             if not _is_int(row["base"]):
+                errors.append("dropped %r: base must be an integer" % name)
                 continue
             base = _as_int(row["base"])
         else:
             base = index * stride
         # Hyprland rejects id <= 0; drop a bank whose last slot is above MAX_WORKSPACE_ID.
-        if base < 0 or base + slots > MAX_WORKSPACE_ID:
+        if base < 0:
+            errors.append("dropped %r: base is negative" % name)
+            continue
+        if base + slots > MAX_WORKSPACE_ID:
+            errors.append("dropped %r: last workspace is above %d" % (name, MAX_WORKSPACE_ID))
             continue
         lo = base + 1
         hi = base + slots
@@ -121,6 +148,7 @@ def parse_obj(data):
                 overlap = True
                 break
         if overlap:
+            errors.append("dropped %r: overlaps an earlier bank" % name)
             continue
         accent = row.get("accent")
         if not (isinstance(accent, str) and accent in ACCENT_CYCLE):
@@ -130,15 +158,56 @@ def parse_obj(data):
         rows.append({"name": name, "base": base, "accent": accent})
 
     if not rows:
-        return default_file()
+        failed = _failed(errors + ["no usable context rows"])
+        return failed
 
     return {
+        "ok": True,
+        "status": "ok",
+        "errors": errors,
         "stride": stride,
         "slots": slots,
         "maxContexts": max_contexts,
         "fallback": fallback,
         "contexts": rows,
     }
+
+
+def write_last_good(home, filled):
+    path = last_good_path(home)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name("last-good.json.tmp")
+        tmp.write_text(json.dumps(filled, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(path)
+    except OSError:
+        return
+
+
+def read_last_good(home):
+    path = last_good_path(home)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("contexts"), list):
+        return None
+    if not data["contexts"]:
+        return None
+    return data
+
+
+def with_last_good(home, errors, fallback=None):
+    previous = read_last_good(home)
+    if previous is not None:
+        filled = dict(previous)
+        filled["ok"] = False
+        filled["status"] = "error"
+        filled["errors"] = list(errors)
+        return filled
+    if fallback is not None:
+        return fallback
+    return _failed(errors)
 
 
 def seed_if_missing(home):
@@ -170,9 +239,15 @@ def load(*, home=None):
     if path.is_file():
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            return default_file()
-        return parse_obj(data)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            return with_last_good(
+                home, ["could not parse contexts.json: %s" % exc]
+            )
+        filled = parse_obj(data)
+        if filled.get("ok"):
+            write_last_good(home, filled)
+            return filled
+        return with_last_good(home, filled.get("errors") or [], filled)
     return default_file()
 
 
@@ -181,7 +256,10 @@ def main(argv=None):
     if args != ["--dump"]:
         sys.stderr.write("usage: parse_contexts.py --dump\n")
         return 2
-    json.dump(load(), sys.stdout, indent=2)
+    filled = load()
+    for line in filled.get("errors") or []:
+        sys.stderr.write("workspace-contexts: %s\n" % line)
+    json.dump(filled, sys.stdout, indent=2)
     sys.stdout.write("\n")
     return 0
 

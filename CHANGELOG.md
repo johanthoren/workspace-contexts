@@ -9,6 +9,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 First public release.
 
+### Fixed
+
+- On a gap workspace the bar and Super+N stay on the last bank you used, not
+  the first bank.
+- Clicking a bank name on the bar restores that bank's last slot, matching
+  Super+Ctrl+Left and Super+Ctrl+Right.
+- Invalid `contexts.json` keeps the last good dump, written to
+  `~/.local/state/omarchy/io.github.johanthoren.workspace-contexts/last-good.json`,
+  and writes the reason to stderr instead of silently switching to the shipped
+  banks.
+- Bank colors reload when Omarchy applies a theme. The widget no longer watches
+  a `colors.toml` path that `omarchy-theme-set` deletes.
+
 ### Added
 
 - Bar widget showing bank-local slot numbers for the active bank, plus a button

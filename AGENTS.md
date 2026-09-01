@@ -108,10 +108,15 @@ through `lua5.1` under a temporary `HOME`. The Lua file also runs standalone
 of the filled table rather than specific names, because it then reads the real
 user's `contexts.json`.
 
-`parse_contexts.py --dump` is the filled table QML and Hyprland consume. Do not
-reimplement bank math in QML or Lua. Do not add Herdr, hostnames, or picker code
-here.
+`parse_contexts.py --dump` is the filled table QML and Hyprland consume. It
+includes `ok`, `status`, and `errors`. A good parse writes
+`~/.local/state/omarchy/io.github.johanthoren.workspace-contexts/last-good.json`.
+When `ok` is false, the dump is that last good table, or the shipped banks if
+none exists. Do not reimplement bank math in QML or Lua. Do not add Herdr,
+hostnames, or picker code here.
 
 `hypr/contexts.lua` caches the dump against the raw text of `contexts.json`.
 Every keybind resolves the current file, and each dump forks a Python interpreter
-inside the compositor's Lua VM (~40 ms). Keep the hot path fork-free.
+inside the compositor's Lua VM (~40 ms). Keep the hot path fork-free. A dump with
+`ok` false pins that source to the last good table so a stable broken file does
+not re-fork.

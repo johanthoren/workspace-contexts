@@ -12,6 +12,8 @@ BarWidget {
 
   property var contexts: []
   property int bankSlots: 9
+  property var lastSlots: ({})
+  property string lastContextName: ""
   property var fallbackContextColors: ({
     blue: "#7aa2f7",
     green: "#9ece6a",
@@ -52,6 +54,14 @@ BarWidget {
       return
     }
     if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.contexts) || parsed.contexts.length === 0) return
+
+    var errors = parsed.errors
+    var errorCount = errors && errors.length ? errors.length : 0
+    for (var e = 0; e < errorCount; e++) {
+      if (errors[e]) console.log("workspace-contexts: " + errors[e])
+    }
+    var dumpFailed = parsed.status === "error" || parsed.ok === false
+    if (dumpFailed && root.contexts.length > 0) return
 
     var next = []
     for (var i = 0; i < parsed.contexts.length; i++) {
@@ -107,6 +117,30 @@ BarWidget {
     return -1
   }
 
+  function contextIndexForName(name) {
+    if (!name) return -1
+    for (var i = 0; i < root.contexts.length; i++) {
+      if (root.contexts[i].name === name) return i
+    }
+    return -1
+  }
+
+  function rememberFromWorkspace(id) {
+    var index = root.contextIndexForWorkspace(id)
+    if (index < 0) return
+    var ctx = root.contexts[index]
+    var slots = root.lastSlots
+    slots[ctx.name] = id - ctx.base
+    root.lastSlots = slots
+    root.lastContextName = ctx.name
+  }
+
+  function slotForName(name) {
+    var slot = root.lastSlots[name] || 1
+    if (slot < 1 || slot > root.bankSlots) return 1
+    return slot
+  }
+
   function contextColor(index) {
     var ctx = root.contexts[index]
     if (!ctx) return Color.accent
@@ -154,14 +188,19 @@ BarWidget {
   function focusContext(index) {
     var ctx = root.contexts[index]
     if (!ctx) return
-    root.focusWorkspace(ctx.base + 1)
+    root.lastContextName = ctx.name
+    root.focusWorkspace(ctx.base + root.slotForName(ctx.name))
   }
 
-  readonly property int focusedContextIndex: {
-    var workspace = Hyprland.focusedWorkspace
-    return workspace === null ? -1 : root.contextIndexForWorkspace(workspace.id)
+  readonly property int focusedWorkspaceId: Hyprland.focusedWorkspace === null ? -1 : Hyprland.focusedWorkspace.id
+  onFocusedWorkspaceIdChanged: if (root.focusedWorkspaceId > 0) root.rememberFromWorkspace(root.focusedWorkspaceId)
+
+  readonly property int focusedContextIndex: root.focusedWorkspaceId < 1 ? -1 : root.contextIndexForWorkspace(root.focusedWorkspaceId)
+  readonly property int rememberedContextIndex: {
+    var index = root.contextIndexForName(root.lastContextName)
+    return index >= 0 ? index : 0
   }
-  readonly property int activeContextIndex: focusedContextIndex >= 0 ? focusedContextIndex : 0
+  readonly property int activeContextIndex: focusedContextIndex >= 0 ? focusedContextIndex : rememberedContextIndex
   readonly property var activeContext: root.contexts.length > 0 ? root.contexts[root.activeContextIndex] : null
   readonly property color activeContextColor: (root.activeContext && root.contextColors[root.activeContext.accent]) || Color.accent
   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
@@ -192,15 +231,30 @@ BarWidget {
   }
 
   FileView {
+    id: themeFile
     path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme/colors.toml"
-    watchChanges: true
+    watchChanges: false
     printErrors: false
     onLoaded: root.loadContextColors(text())
-    onFileChanged: reload()
     onLoadFailed: {
       root.lastThemeText = ""
       root.contextColors = root.fallbackContextColors
     }
+  }
+
+  FileView {
+    path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme.name"
+    watchChanges: true
+    printErrors: false
+    onLoaded: themeFile.reload()
+    onFileChanged: reload()
+  }
+
+  Connections {
+    target: Color
+    function onAccentChanged() { themeFile.reload() }
+    function onForegroundChanged() { themeFile.reload() }
+    function onBackgroundChanged() { themeFile.reload() }
   }
 
   Process {
@@ -209,6 +263,13 @@ BarWidget {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.applyDump(text)
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var raw = String(text || "")
+        if (raw.length > 0) console.warn(raw.replace(/\n$/, ""))
+      }
     }
     onExited: {
       if (root.dumpPending) {

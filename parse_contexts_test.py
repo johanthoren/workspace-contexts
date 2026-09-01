@@ -44,6 +44,8 @@ def test_defaults_missing_file():
         assert filled["stride"] == 10
         assert filled["slots"] == 9
         assert filled["maxContexts"] == 10
+        assert filled["ok"] is True
+        assert filled["errors"] == []
         user = parse_contexts.user_file(home)
         assert user.is_file(), "missing file is seeded"
         example = (ROOT / "contexts.example.json").read_text(encoding="utf-8")
@@ -130,6 +132,8 @@ def test_drop_negative_base():
 
     only_negative = parse_contexts.parse_obj({"contexts": [{"name": "below", "base": -1}]})
     assert names(only_negative) == ["work", "personal", "other"], "no usable row falls back"
+    assert only_negative["ok"] is False
+    assert any("negative" in line for line in only_negative["errors"])
 
 
 def test_drop_huge_base():
@@ -166,6 +170,8 @@ def test_drop_overlap():
     )
     assert names(filled) == ["a", "c"], "overlapping bank is dropped"
     assert bases(filled) == [0, 10]
+    assert filled["ok"] is True
+    assert any("overlaps" in line for line in filled["errors"])
 
 
 def test_drop_hex_as_accent():
@@ -203,6 +209,7 @@ def test_do_not_overwrite_existing_user_file():
         filled = parse_contexts.load(home=home)
         assert path.read_text(encoding="utf-8") == original, "existing user file is left untouched"
         assert names(filled) == ["kept"]
+        assert filled["ok"] is True
 
     with tempfile.TemporaryDirectory() as tmp:
         home = Path(tmp)
@@ -211,6 +218,26 @@ def test_do_not_overwrite_existing_user_file():
         filled = parse_contexts.load(home=home)
         assert path.read_text(encoding="utf-8") == garbage, "invalid user file is not overwritten"
         assert names(filled) == ["work", "personal", "other"]
+        assert filled["ok"] is False
+        assert filled["errors"], "invalid JSON must report why"
+
+
+def test_last_good_survives_invalid_json():
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        write_user(home, {"contexts": [{"name": "kept", "base": 0, "accent": "blue"}]})
+        first = parse_contexts.load(home=home)
+        assert names(first) == ["kept"]
+        assert first["ok"] is True
+        sidecar = parse_contexts.last_good_path(home)
+        assert sidecar.is_file(), "a good parse writes last-good.json"
+
+        write_user(home, "{not json")
+        second = parse_contexts.load(home=home)
+        assert names(second) == ["kept"], "invalid JSON dumps the last good banks"
+        assert second["ok"] is False
+        assert second["status"] == "error"
+        assert any("could not parse" in line for line in second["errors"])
 
 
 def test_dump_cli():
@@ -224,8 +251,38 @@ def test_dump_cli():
         )
         filled = json.loads(raw)
         assert names(filled) == ["work", "personal", "other"]
+        assert filled["ok"] is True
+        assert filled["status"] == "ok"
         user = parse_contexts.user_file(tmp)
         assert user.is_file()
+
+
+def test_dump_cli_invalid_json_stderr():
+    with tempfile.TemporaryDirectory() as tmp:
+        write_user(tmp, "{not json")
+        env = os.environ.copy()
+        env["HOME"] = tmp
+        proc = subprocess.run(
+            [sys.executable, str(ROOT / "parse_contexts.py"), "--dump"],
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert proc.returncode == 0, "dump still prints a table on parse failure"
+        filled = json.loads(proc.stdout)
+        assert filled["ok"] is False
+        assert filled["status"] == "error"
+        assert names(filled) == ["work", "personal", "other"]
+        assert "workspace-contexts:" in proc.stderr
+        assert "could not parse" in proc.stderr
+
+
+def test_not_an_object_is_failed_dump():
+    filled = parse_contexts.parse_obj([])
+    assert filled["ok"] is False
+    assert names(filled) == ["work", "personal", "other"]
+    assert any("contexts array" in line for line in filled["errors"])
 
 
 def test_lua():
@@ -255,7 +312,10 @@ def main():
         test_drop_hex_as_accent,
         test_unique_names,
         test_do_not_overwrite_existing_user_file,
+        test_last_good_survives_invalid_json,
         test_dump_cli,
+        test_dump_cli_invalid_json_stderr,
+        test_not_an_object_is_failed_dump,
         test_lua,
     ]
     for test in tests:

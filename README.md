@@ -60,15 +60,18 @@ slot 10 of the current bank. Super+Ctrl+Left and Super+Ctrl+Right were stock's
 grouped-window focus. Super+Shift+N, the letter, stays stock Editor.
 
 Each bank remembers the slot you last used in it, so returning to a bank returns
-you to where you left off.
+you to where you left off. Clicking a bank name on the bar does the same.
 
 ## Configure
 
 The plugin reads
 `~/.config/omarchy/io.github.johanthoren.workspace-contexts/contexts.json`, and
 copies `contexts.example.json` there on first run if it is missing. Your file is
-never overwritten, including when it fails to parse. Editing it takes effect on
-the next keypress; no reload needed unless you change `slots`.
+never overwritten, including when it fails to parse. A parse failure keeps the
+last good dump, from
+`~/.local/state/omarchy/io.github.johanthoren.workspace-contexts/last-good.json`
+if needed, and writes the reason to stderr. Editing a valid file takes effect on
+the next keypress. Reload Hyprland after you change `slots`.
 
 ```json
 {
@@ -102,8 +105,11 @@ color in the cycle: blue, green, magenta, yellow, cyan, red.
 
 A row is dropped if its name is empty or a duplicate, its `base` is negative,
 its last workspace id is greater than 99, or its range overlaps a bank already
-accepted. If no row survives, the shipped three are used. `slots` above 10
-clamps to 10, because the number row runs out.
+accepted. Dropped rows stay in your file. The dump keeps the rows that survived
+and names the drops on stderr. If no row survives, or the file is not JSON, the
+bar and keys keep the last good dump. On first run, with nothing to keep, they
+use the shipped three. `slots` above 10 clamps to 10, because the number row
+runs out.
 
 Reload Hyprland after changing `slots`, since that decides which keys get bound.
 
@@ -115,9 +121,49 @@ widget behaves. Slot numbers are bank-local: slot 1 of `personal` reads `1`, not
 `11`.
 
 With the shipped configuration, workspaces 10, 20, and 30 belong to no bank.
-Landing on one, for example with Super+0, leaves the bar showing the first bank
-with no slot underlined. Set `stride` and `slots` to the same value if you would
-rather have no gaps.
+Landing on one, for example with Super+0, leaves the bar showing the last bank
+you were in, with no slot underlined. Super+1 stays in that bank. If you have
+not visited a bank yet, the first bank is shown. Set `stride` and `slots` to the
+same value if you would rather have no gaps.
+
+## Update
+
+```bash
+omarchy plugin update io.github.johanthoren.workspace-contexts
+hyprctl reload
+```
+
+`hyprctl reload` rebinds Super+1 through Super+9 from the new module. The bar
+widget reloads from the plugin files on its own.
+
+## Disable
+
+```bash
+omarchy plugin disable io.github.johanthoren.workspace-contexts
+```
+
+That only removes the bar widget. Super+1 through Super+9 stay as slots until
+you comment out or delete the `dofile` line in `~/.config/hypr/bindings.lua` and
+run `hyprctl reload`.
+
+## If the bar jumps to work, personal, other
+
+Your `contexts.json` failed to parse on first load, before anything was cached.
+The file itself is still yours. Check it:
+
+```bash
+python3 ~/.config/omarchy/plugins/io.github.johanthoren.workspace-contexts/parse_contexts.py --dump
+```
+
+Warnings print on stderr. The JSON on stdout is the table the bar and keys
+would use. Fix the file, then press Super+1 or edit the file again. A typo after
+the plugin has already loaded keeps your previous banks.
+
+To see the same warnings from the bar or compositor:
+
+```bash
+journalctl --user --since "5 min ago" | grep workspace-contexts
+```
 
 ## Uninstall
 
@@ -126,11 +172,14 @@ Remove the `dofile` line from `~/.config/hypr/bindings.lua`, then:
 ```bash
 hyprctl reload
 omarchy plugin remove io.github.johanthoren.workspace-contexts
+omarchy plugin enable omarchy.workspaces --section left
 ```
 
-Do not reverse that order. `omarchy plugin remove` then `hyprctl reload` with
-the `dofile` line still present is a Lua error: the file is gone, and the rest
-of `bindings.lua` does not load. Your `contexts.json` is left in place; delete
+Do not reverse the first two steps. `omarchy plugin remove` then `hyprctl reload`
+with the `dofile` line still present is a Lua error: the file is gone, and the
+rest of `bindings.lua` does not load. Disabling the widget never restored stock
+workspace keys. The `dofile` removal plus reload does that. Your `contexts.json`
+is left in place. Delete
 `~/.config/omarchy/io.github.johanthoren.workspace-contexts/` to remove it.
 
 ## Develop
