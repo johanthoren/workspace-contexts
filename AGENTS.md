@@ -55,6 +55,14 @@ Edit `$HOME/.config/omarchy/io.github.johanthoren.workspace-contexts/contexts.js
 
 ## Change this repo
 
+The git root is `$HOME/code/workspace-contexts`. Do not treat `~/.config/omarchy/plugins/io.github.johanthoren.workspace-contexts` as the source tree. That directory is the install clone Omarchy loads. `omarchy plugin validate` rejects symlinks, so the two paths are two checkouts of the same GitHub remote.
+
+After you commit in `$HOME/code/workspace-contexts`, update the install clone so the running shell sees the files:
+
+```bash
+git -C "$HOME/.config/omarchy/plugins/io.github.johanthoren.workspace-contexts" pull --ff-only
+```
+
 ```bash
 python3 parse_contexts_test.py
 lua hypr/contexts_test.lua
