@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.johanthoren.workspace-contexts",
+  "name": "Workspace Contexts",
+  "version": "1.0.0",
+  "author": "Johan Thorén",
+  "license": "MIT",
+  "description": "Named Hyprland workspace banks with theme colors in the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "ContextWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Workspace Contexts",
+    "description": "Slot numbers for the active bank, plus a button for each named context.",
+    "category": "Compositor",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}
