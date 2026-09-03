@@ -12,6 +12,9 @@ BarWidget {
 
   property var contexts: []
   property int bankSlots: 9
+  // False keeps each bank's own last slot. True lands on the slot you were
+  // already on, matching Super+Ctrl+Left and Super+Ctrl+Right.
+  property bool carrySlot: false
   property var lastSlots: ({})
   property string lastContextName: ""
   property var fallbackContextColors: ({
@@ -77,6 +80,7 @@ BarWidget {
     // parse_contexts.py already clamps this; the widget re-checks because it
     // validates every other field it reads out of the dump.
     if (typeof parsed.slots === "number" && parsed.slots >= 1) root.bankSlots = Math.min(10, Math.floor(parsed.slots))
+    root.carrySlot = parsed.carrySlot === true
     if (parsed.fallback && typeof parsed.fallback === "object") {
       var fallback = {}
       var keys = ["blue", "green", "magenta", "yellow", "cyan", "red"]
@@ -141,6 +145,21 @@ BarWidget {
     return slot
   }
 
+  // The slot the focused workspace sits in, or 0 on a gap workspace.
+  function currentSlot() {
+    if (root.focusedContextIndex < 0) return 0
+    return root.focusedWorkspaceId - root.contexts[root.focusedContextIndex].base
+  }
+
+  // With carrySlot the slot travels with you, so slot 2 of one bank lands on
+  // slot 2 of the next. From a gap workspace there is no slot to carry, so the
+  // target bank's own memory answers.
+  function arrivalSlot(name) {
+    var slot = root.currentSlot()
+    if (root.carrySlot && slot >= 1) return slot
+    return root.slotForName(name)
+  }
+
   function contextColor(index) {
     var ctx = root.contexts[index]
     if (!ctx) return Color.accent
@@ -189,7 +208,7 @@ BarWidget {
     var ctx = root.contexts[index]
     if (!ctx) return
     root.lastContextName = ctx.name
-    root.focusWorkspace(ctx.base + root.slotForName(ctx.name))
+    root.focusWorkspace(ctx.base + root.arrivalSlot(ctx.name))
   }
 
   readonly property int focusedWorkspaceId: Hyprland.focusedWorkspace === null ? -1 : Hyprland.focusedWorkspace.id

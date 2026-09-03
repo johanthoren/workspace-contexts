@@ -19,6 +19,9 @@ TOKYO_NIGHT = {
 DEFAULT_STRIDE = 10
 DEFAULT_SLOTS = 9
 DEFAULT_MAX_CONTEXTS = 10
+# False keeps each bank's own last slot. True lands on the slot you were already
+# on, so slot 2 of work switches to slot 2 of personal.
+DEFAULT_CARRY_SLOT = False
 # Slots become Super+1 through Super+0 on the number row, which runs out after
 # ten keys. A larger value would bind Super+BackSpace, Super+Tab, Super+Q, and
 # on into the letters, silently taking over stock Omarchy shortcuts.
@@ -52,6 +55,7 @@ def default_file():
         "stride": DEFAULT_STRIDE,
         "slots": DEFAULT_SLOTS,
         "maxContexts": DEFAULT_MAX_CONTEXTS,
+        "carrySlot": DEFAULT_CARRY_SLOT,
         "fallback": dict(TOKYO_NIGHT),
         "contexts": [dict(row) for row in SHIPPED_CONTEXTS],
     }
@@ -87,6 +91,12 @@ def _positive_int(value, default, maximum=None):
     return default
 
 
+def _bool(value, default):
+    if isinstance(value, bool):
+        return value
+    return default
+
+
 def _parse_fallback(raw):
     fallback = dict(TOKYO_NIGHT)
     if not isinstance(raw, dict):
@@ -105,6 +115,7 @@ def parse_obj(data):
     stride = _positive_int(data.get("stride"), DEFAULT_STRIDE)
     slots = _positive_int(data.get("slots"), DEFAULT_SLOTS, MAX_SLOTS)
     max_contexts = _positive_int(data.get("maxContexts"), DEFAULT_MAX_CONTEXTS)
+    carry_slot = _bool(data.get("carrySlot"), DEFAULT_CARRY_SLOT)
     fallback = _parse_fallback(data.get("fallback"))
 
     rows = []
@@ -168,6 +179,7 @@ def parse_obj(data):
         "stride": stride,
         "slots": slots,
         "maxContexts": max_contexts,
+        "carrySlot": carry_slot,
         "fallback": fallback,
         "contexts": rows,
     }

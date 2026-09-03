@@ -76,6 +76,10 @@ dropped when its name is empty or duplicated, its `base` is negative, its last
 workspace id is greater than 99, or its range overlaps an already-accepted bank.
 Default cap is 10 rows (`maxContexts`).
 
+`carrySlot` is a boolean, default false. False keeps each bank's own last slot.
+True carries the current slot into the bank you switch to, and falls back to the
+target bank's memory when the active workspace belongs to no bank.
+
 `slots` is capped at 10. Slots become Super+1 through Super+0 on the number row,
 and a higher value would reach past it into Super+BackSpace, Super+Tab, and the
 letters, silently taking over stock Omarchy shortcuts.

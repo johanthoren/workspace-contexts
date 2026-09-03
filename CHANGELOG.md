@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `carrySlot`, off by default. With it on, switching banks lands on the slot you
+  were already using, so slot 2 of one bank goes to slot 2 of the next. Applies
+  to Super+Ctrl+Left, Super+Ctrl+Right, and clicking a bank name on the bar.
+  Turn it on when you keep the same kind of window in the same slot of every
+  bank.
+
 ## [1.0.0] - 2026-09-02
 
 First public release.

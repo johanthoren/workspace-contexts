@@ -17,6 +17,7 @@ local DEFAULT_FILE = {
   stride = 10,
   slots = 9,
   maxContexts = 10,
+  carrySlot = false,
   contexts = {
     { name = "work", base = 0, accent = "blue" },
     { name = "personal", base = 10, accent = "green" },
@@ -219,6 +220,10 @@ local function slots_of(file)
   return 9
 end
 
+local function carry_slot_of(file)
+  return file ~= nil and file.carrySlot == true
+end
+
 local function read_dump()
   local cmd = "/usr/bin/python3 " .. shell_quote(PARSE_PY) .. " --dump"
   local pipe = io.popen(cmd)
@@ -339,22 +344,24 @@ function M.setup(dependencies)
     return M.load_file()
   end
 
+  -- Returns the row the active workspace belongs to, and the slot within it.
+  -- The slot is nil on a gap workspace, where the row is the last bank visited.
   local function resolve_index(file)
     local workspace = api.get_active_workspace()
     local index, slot = M.location_for_workspace(workspace and workspace.id, file)
     if index then
       active_name = file.contexts[index].name
       last_slots[active_name] = slot
-      return index
+      return index, slot
     end
     if active_name then
       for i, ctx in ipairs(file.contexts) do
         if ctx.name == active_name then
-          return i
+          return i, nil
         end
       end
     end
-    return 1
+    return 1, nil
   end
 
   local function focus_workspace(file, context_index, slot)
@@ -372,6 +379,16 @@ function M.setup(dependencies)
       return 1
     end
     return slot
+  end
+
+  -- With carrySlot the slot travels with you, so slot 2 of one bank lands on
+  -- slot 2 of the next. From a gap workspace there is no slot to carry, so the
+  -- target bank's own memory answers.
+  local function arrival_slot(file, name, current_slot)
+    if carry_slot_of(file) and current_slot then
+      return current_slot
+    end
+    return slot_of(file, name)
   end
 
   local function focus_slot(slot)
@@ -400,14 +417,14 @@ function M.setup(dependencies)
 
   local function switch_context(direction)
     local file = current_file()
-    local index = resolve_index(file)
+    local index, current_slot = resolve_index(file)
     local target = M.adjacent_context(index, direction, #file.contexts)
     if not target or target == index then
       return
     end
     local ctx = file.contexts[target]
     active_name = ctx.name
-    focus_workspace(file, target, slot_of(file, ctx.name))
+    focus_workspace(file, target, arrival_slot(file, ctx.name, current_slot))
   end
 
   local function move_window_to_context(direction)

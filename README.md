@@ -62,6 +62,16 @@ grouped-window focus. Super+Shift+N, the letter, stays stock Editor.
 Each bank remembers the slot you last used in it, so returning to a bank returns
 you to where you left off. Clicking a bank name on the bar does the same.
 
+Set `carrySlot` to `true` to take your position with you instead. From slot 2 of
+`work`, Super+Ctrl+Right lands on slot 2 of `personal`, and clicking a bank name
+does the same. Turn it on when you use slots positionally: the same terminal in
+slot 1 of every bank, a bank-specific browser in slot 2. Switching bank then
+leaves the same kind of window in front of you.
+
+From a workspace that belongs to no bank there is no slot to carry, so that
+bank's own memory answers. Super+Ctrl+Shift+Left and Super+Ctrl+Shift+Right keep
+the slot number either way, because the window travels with you.
+
 ## Configure
 
 The plugin reads
@@ -78,6 +88,7 @@ the next keypress. Reload Hyprland after you change `slots`.
   "stride": 10,
   "slots": 9,
   "maxContexts": 10,
+  "carrySlot": false,
   "contexts": [
     { "name": "work", "base": 0, "accent": "blue" },
     { "name": "personal", "base": 10, "accent": "green" },
@@ -91,6 +102,7 @@ the next keypress. Reload Hyprland after you change `slots`.
 | `stride` | Spacing between banks that omit `base`. Default 10. |
 | `slots` | Workspaces per bank, and how many Super+1 through Super+0 keys get bound. Default 9, capped at 10. |
 | `maxContexts` | How many rows to read before stopping. Default 10. |
+| `carrySlot` | Switch banks at the slot you are already on, instead of that bank's last slot. Default false. |
 | `fallback` | Hex colors used when the theme does not define an accent. |
 | `contexts[].name` | The bar label. Must be unique. |
 | `contexts[].base` | Bank occupies `base + 1` through `base + slots`. Optional, defaults to `index * stride`. |

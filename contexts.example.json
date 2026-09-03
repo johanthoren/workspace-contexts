@@ -2,6 +2,7 @@
   "stride": 10,
   "slots": 9,
   "maxContexts": 10,
+  "carrySlot": false,
   "fallback": {
     "blue": "#7aa2f7",
     "green": "#9ece6a",

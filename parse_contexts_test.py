@@ -119,6 +119,18 @@ def test_slots_capped_at_keyboard_row():
     assert filled["slots"] == 9, "a non-positive slots falls back to the default"
 
 
+def test_carry_slot():
+    filled = parse_contexts.parse_obj({"contexts": [{"name": "a", "base": 0}]})
+    assert filled["carrySlot"] is False, "per-bank slot memory is the default"
+    assert parse_contexts.default_file()["carrySlot"] is False, "shipped table carries the key"
+
+    on = parse_contexts.parse_obj({"carrySlot": True, "contexts": [{"name": "a", "base": 0}]})
+    assert on["carrySlot"] is True, "carrySlot is read from the file"
+
+    bad = parse_contexts.parse_obj({"carrySlot": "yes", "contexts": [{"name": "a", "base": 0}]})
+    assert bad["carrySlot"] is False, "a non-boolean carrySlot falls back to the default"
+
+
 def test_drop_negative_base():
     filled = parse_contexts.parse_obj(
         {
@@ -306,6 +318,7 @@ def main():
         test_missing_base_assignment,
         test_cap_at_10,
         test_slots_capped_at_keyboard_row,
+        test_carry_slot,
         test_drop_negative_base,
         test_drop_huge_base,
         test_drop_overlap,

@@ -244,5 +244,36 @@ if os.getenv("WORKSPACE_CONTEXTS_TEST") == "1" then
   ws.id = 10
   mem.focus_slot(1)
   eq(focused[#focused], "11", "gap Super+1 stays on last bank")
+
+  -- carrySlot true: the slot travels with you instead of the target bank's
+  -- own memory answering.
+  M.load_file = function()
+    return {
+      slots = 9,
+      carrySlot = true,
+      contexts = {
+        { name = "work", base = 0, accent = "blue" },
+        { name = "personal", base = 10, accent = "green" },
+      },
+    }
+  end
+  local carry = M.setup({ hl = mem_hl, o = mem_o })
+  ws.id = 1
+  carry.focus_slot(1)
+  eq(focused[#focused], "1", "work slot 1")
+  carry.switch_context(1)
+  eq(focused[#focused], "11", "carrying slot 1 lands on personal slot 1")
+  ws.id = 11
+  carry.focus_slot(2)
+  eq(focused[#focused], "12", "personal slot 2")
+  ws.id = 12
+  carry.switch_context(-1)
+  eq(focused[#focused], "2", "carrying slot 2 lands on work slot 2, not remembered slot 1")
+  ws.id = 2
+  carry.focus_slot(3)
+  ws.id = 10
+  carry.switch_context(1)
+  eq(focused[#focused], "12", "a gap has no slot to carry, so personal's own memory answers")
+
   M.load_file = orig_load_mem
 end
