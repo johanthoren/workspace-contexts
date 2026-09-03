@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.johanthoren.workspace-contexts",
   "name": "Workspace Contexts",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Johan Thorén",
   "license": "MIT",
   "description": "Named Hyprland workspace banks with theme colors in the Omarchy bar.",
